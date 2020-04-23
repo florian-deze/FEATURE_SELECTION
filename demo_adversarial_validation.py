@@ -43,7 +43,7 @@ def generateRandomNormal(size_dataset, homogeneous_size, degree_of_diff):
 
 def demo():
 	train, test = generateRandomNormal(1000, 10, [(0.5, 0.1), (1, 1), (-3, 0), (3, 2), (10, 5)])
-	result_ks = adv.adversarialValidationKs(train, test, 0.1)
+	result_ks = adv.adversarialValidationKs(train, test)
 
 	result, suggestion = adv.adversarialValidation(train, test, [], 0.1, model.tpsRandomForestClassifier)
 	print(result_ks.sort_values(by="P_VALUE", ascending=False))

@@ -25,15 +25,12 @@ def labelisationAdversarialValidation(train, test):
 	return train, test
 	
 
-def adversarialValidationModel(train:pd.DataFrame, test:pd.DataFrame, target:str, tps_func):
+def adversarialValidationModel(data:pd.DataFrame, target:str, tps_func):
 	# prepare
-	train_x = train.drop(labels=target, axis=1)
-	train_y = train[target]
-	test_x = test.drop(labels=target, axis=1)
-	test_y = test[target]
+	train_x = data.drop(labels=target, axis=1)
+	train_y = data[target]
 	# save memory space
-	del train
-	del test
+	del data
 	gc.collect()
 	# run train/pred/score func
 	total_vars = train_x.shape[1]
@@ -44,7 +41,6 @@ def adversarialValidationModel(train:pd.DataFrame, test:pd.DataFrame, target:str
 		score = score.sort_values(by="SCORE", ascending=False)
 		result = result.append(score.iloc[0].T)
 		train_x = train_x.drop(labels=score.iloc[0]["FEAT"], axis=1)
-		test_x = test_x.drop(labels=score.iloc[0]["FEAT"], axis=1)
 		nb_vars=train_x.shape[1]
 		if nb_vars<2:
 			result = result.append(score.iloc[1].T)
@@ -60,11 +56,11 @@ def adversarialValidationModel(train:pd.DataFrame, test:pd.DataFrame, target:str
 ###################################
 
 
-def ks_test_monte_carlo_simulation(train, test, nb_simulation=10):
+def ks_test_per_feat(train, test):
 	return {c:[round(ks_2samp(train[c], test[c])[1],2)] for c in test.columns}
 
-def adversarialValidationKs(train:pd.DataFrame, test:pd.DataFrame, threshold_ks=0.1):
-	result = pd.DataFrame().from_dict(ks_test_monte_carlo_simulation(train, test)).reset_index(drop=True)
+def adversarialValidationKs(train:pd.DataFrame, test:pd.DataFrame):
+	result = pd.DataFrame().from_dict(ks_test_per_feat(train, test)).reset_index(drop=True)
 	result = result.T.reset_index()
 	result.columns = ["FEAT", "P_VALUE"]
 	return result
@@ -96,7 +92,7 @@ def adversarialValidation(train:pd.DataFrame, test:pd.DataFrame, categorical:lis
 	"""
 
 	# adversarial validation with ks test
-	result_ks = adversarialValidationKs(train.drop(labels=categorical, axis=1), test.drop(labels=categorical, axis=1), threshold_ks)
+	result_ks = adversarialValidationKs(train.drop(labels=categorical, axis=1), test.drop(labels=categorical, axis=1))
 	# remove feats with high p_value or p_value at 0
 	feats = result_ks[result_ks["P_VALUE"]<threshold_ks*2.5]
 	feats = feats[feats["P_VALUE"]>0]["FEAT"].to_numpy()
@@ -108,7 +104,7 @@ def adversarialValidation(train:pd.DataFrame, test:pd.DataFrame, categorical:lis
 	train, test = labelisationAdversarialValidation(train, test)
 
 	# adversarial validation with model
-	result_model = adversarialValidationModel(train, test, TARGET_ADVERSARIAL, tps_func)
+	result_model = adversarialValidationModel(train.append(test), TARGET_ADVERSARIAL, tps_func)
 
 	# combine scores
 	# variable with high p_value does not have score with model so we fill with 1
